@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f4ee">
+  <title>Grand Staff Trainer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #202b3c;
+      background: #f6f4ee;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --ink: #202b3c;
+      --muted: #657185;
+      --line: #dce1e8;
+      --blue: #355de5;
+      --blue-dark: #2347c6;
+      --surface: #fff;
+      --green: #18764a;
+      --red: #b63a3a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      padding: 32px 18px 48px;
+      background:
+        radial-gradient(ellipse at 50% -10%, #fff 0, transparent 62%),
+        #f6f4ee;
+    }
+
+    button, select { font: inherit; }
+
+    .app {
+      width: min(820px, 100%);
+      margin: 0 auto;
+    }
+
+    header { margin-bottom: 24px; }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--blue);
+      font-size: .73rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 5vw, 2.6rem);
+      letter-spacing: -.045em;
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid #e8e6df;
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: 0 16px 40px #28334a0d, 0 2px 6px #28334a08;
+    }
+
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 18px;
+      padding: 20px 24px;
+      border-bottom: 1px solid #edf0f3;
+    }
+
+    .setting-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: .75rem;
+      font-weight: 750;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .level-setting { width: 150px; }
+
+    select {
+      width: 100%;
+      min-height: 44px;
+      padding: 0 36px 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .mode-setting { flex: 1 1 340px; }
+
+    .mode-switch {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 12px;
+      background: #f1f3f7;
+    }
+
+    .mode-button {
+      flex: 1;
+      min-height: 36px;
+      padding: 7px 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: #596579;
+      cursor: pointer;
+      font-size: .87rem;
+      font-weight: 700;
+      transition: background .15s, color .15s, box-shadow .15s;
+    }
+
+    .mode-button[aria-pressed="true"] {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 4px #202b3c1a;
+    }
+
+    button:focus-visible, select:focus-visible {
+      outline: 3px solid #8da3ff;
+      outline-offset: 2px;
+    }
+
+    .practice {
+      padding: 18px 22px 24px;
+      text-align: center;
+    }
+
+    .round-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 0 auto 4px;
+      width: min(620px, 100%);
+      color: var(--muted);
+      font-size: .83rem;
+      font-weight: 650;
+    }
+
+    .round-info strong { color: var(--ink); }
+
+    .staff-wrap {
+      width: min(680px, 100%);
+      margin: 0 auto;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    .staff-line, .ledger-line {
+      stroke: #344052;
+      stroke-width: 1.5;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .clef {
+      fill: #25334b;
+      font-family: "Noto Music", "Segoe UI Symbol", "Apple Symbols", serif;
+      font-size: 78px;
+      text-anchor: middle;
+    }
+
+    .clef.bass {
+      font-size: 63px;
+    }
+
+    .notehead {
+      fill: #26344b;
+      stroke: #26344b;
+      stroke-width: 1.3;
+    }
+
+    .stem {
+      stroke: #26344b;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+    }
+
+    .feedback {
+      min-height: 28px;
+      margin: 4px 0 14px;
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 700;
+    }
+
+    .feedback.correct { color: var(--green); }
+    .feedback.incorrect { color: var(--red); }
+
+    .answer-buttons {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      width: min(560px, 100%);
+      margin: 0 auto;
+    }
+
+    .answer-button {
+      min-height: 54px;
+      border: 1px solid #dfe4eb;
+      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 1.18rem;
+      font-weight: 800;
+      transition: transform .12s, border-color .12s, background .12s, color .12s;
+    }
+
+    .answer-button:hover {
+      transform: translateY(-2px);
+      border-color: #9aabf4;
+      background: #f5f7ff;
+    }
+
+    .answer-button:active { transform: translateY(0); }
+
+    .storage-notice {
+      display: none;
+      margin: 14px auto 0;
+      color: #8a4c13;
+      font-size: .82rem;
+    }
+
+    .storage-notice.visible { display: block; }
+
+    .hint {
+      margin: 17px 0 0;
+      color: #778194;
+      font-size: .78rem;
+    }
+
+    @media (max-width: 560px) {
+      body { padding: 24px 12px 32px; }
+      .settings { gap: 14px; padding: 17px 16px; }
+      .level-setting { width: 120px; }
+      .mode-setting { flex-basis: 100%; }
+      .mode-button { font-size: .78rem; }
+      .practice { padding: 15px 10px 21px; }
+      .answer-buttons { gap: 6px; }
+      .answer-button { min-height: 48px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <p class="eyebrow">Read it. Name it. Play it.</p>
+      <h1>Grand Staff Trainer</h1>
+      <p class="subtitle">Practice recognizing notes one step at a time. Choose a level and staff style to get started.</p>
+    </header>
+
+    <section class="panel" aria-label="Note reading practice">
+      <div class="settings">
+        <label class="level-setting">
+          <span class="setting-label">Difficulty</span>
+          <select id="level" aria-label="Choose level"></select>
+        </label>
+        <div class="mode-setting">
+          <span class="setting-label">Staff style</span>
+          <div class="mode-switch" role="group" aria-label="Choose staff style">
+            <button class="mode-button" type="button" data-mode="grand" aria-pressed="true">Grand staff</button>
+            <button class="mode-button" type="button" data-mode="treble" aria-pressed="false">Treble · guitar range</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="practice">
+        <div class="round-info">
+          <span id="level-description">Level 1 · 3 notes</span>
+          <span>Correct: <strong id="score">0</strong></span>
+        </div>
+        <div class="staff-wrap">
+          <svg id="staff" viewBox="0 0 700 440" role="img" aria-label="A note on the grand staff"></svg>
+        </div>
+        <p id="feedback" class="feedback" aria-live="polite">Which note is this?</p>
+        <div class="answer-buttons" role="group" aria-label="Choose the note name">
+          <button class="answer-button" type="button" data-letter="A">A</button>
+          <button class="answer-button" type="button" data-letter="B">B</button>
+          <button class="answer-button" type="button" data-letter="C">C</button>
+          <button class="answer-button" type="button" data-letter="D">D</button>
+          <button class="answer-button" type="button" data-letter="E">E</button>
+          <button class="answer-button" type="button" data-letter="F">F</button>
+          <button class="answer-button" type="button" data-letter="G">G</button>
+        </div>
+        <p id="storage-notice" class="storage-notice" role="status"></p>
+        <p class="hint">Notes are natural (no sharps or flats). You can also answer with the A–G keys.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "grand-staff-trainer-settings";
+      const LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+      const LETTER_INDEX = Object.fromEntries(LETTERS.map((letter, index) => [letter, index]));
+      const levelSelect = document.querySelector("#level");
+      const staff = document.querySelector("#staff");
+      const description = document.querySelector("#level-description");
+      const feedback = document.querySelector("#feedback");
+      const scoreDisplay = document.querySelector("#score");
+      const storageNotice = document.querySelector("#storage-notice");
+      const modeButtons = [...document.querySelectorAll(".mode-button")];
+      let mode = "grand";
+      let level = 1;
+      let currentNote = null;
+      let previousPitch = null;
+      let score = 0;
+
+      for (let number = 1; number <= 15; number += 1) {
+        const option = document.createElement("option");
+        option.value = String(number);
+        option.textContent = `Level ${number}`;
+        levelSelect.append(option);
+      }
+
+      function readSettings() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+          if (Number.isInteger(saved.level) && saved.level >= 1 && saved.level <= 15) {
+            level = saved.level;
+          }
+          if (saved.mode === "grand" || saved.mode === "treble") {
+            mode = saved.mode;
+          }
+        } catch {
+          showStorageNotice("Saved settings could not be read. Your choices may not persist in this browser.");
+        }
+        levelSelect.value = String(level);
+        updateModeButtons();
+      }
+
+      function saveSettings() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ level, mode }));
+          storageNotice.classList.remove("visible");
+        } catch {
+          showStorageNotice("Settings could not be saved. Check this browser's storage permissions.");
+        }
+      }
+
+      function showStorageNotice(message) {
+        storageNotice.textContent = message;
+        storageNotice.classList.add("visible");
+      }
+
+      function pitchIndex(letter, octave) {
+        return octave * 7 + LETTER_INDEX[letter];
+      }
+
+      function getPitches() {
+        const min = mode === "grand" ? pitchIndex("A", 1) : pitchIndex("F", 3);
+        const max = pitchIndex("E", 6);
+        const center = pitchIndex("C", 4);
+        const pitches = [];
+        for (let pitch = min; pitch <= max; pitch += 1) pitches.push(pitch);
+
+        const seeds = [pitchIndex("C", 4), pitchIndex("E", 4), pitchIndex("G", 4)];
+        const ordered = [...seeds, ...pitches
+          .filter(pitch => !seeds.includes(pitch))
+          .sort((a, b) => Math.abs(a - center) - Math.abs(b - center) || a - b)];
+        const count = Math.ceil(3 + (pitches.length - 3) * ((level - 1) / 14));
+        return ordered.slice(0, count).sort((a, b) => a - b);
+      }
+
+      function svgElement(name, attributes = {}) {
+        const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+        return element;
+      }
+
+      function drawStaff(pitch) {
+        staff.replaceChildren();
+        const grand = mode === "grand";
+        const staffLines = grand
+          ? [120, 140, 160, 180, 200, 240, 260, 280, 300, 320]
+          : [120, 140, 160, 180, 200];
+        staffLines.forEach(y => staff.append(svgElement("line", {
+          x1: 65, x2: 635, y1: y, y2: y, class: "staff-line"
+        })));
+
+        const trebleClef = svgElement("text", { x: 115, y: 198, class: "clef" });
+        trebleClef.textContent = "𝄞";
+        staff.append(trebleClef);
+        if (grand) {
+          const bassClef = svgElement("text", { x: 115, y: 316, class: "clef bass" });
+          bassClef.textContent = "𝄢";
+          staff.append(bassClef);
+        }
+
+        const yForPitch = value => 200 - (value - pitchIndex("E", 4)) * 10;
+        const y = yForPitch(pitch);
+        const ledgerYs = new Set();
+        const upperLedgerPitches = [pitchIndex("A", 5), pitchIndex("C", 6), pitchIndex("E", 6)];
+        const lowerLedgerPitches = grand
+          ? [pitchIndex("E", 2), pitchIndex("C", 2), pitchIndex("A", 1)]
+          : [pitchIndex("C", 4), pitchIndex("A", 3), pitchIndex("F", 3)];
+        for (const ledgerPitch of upperLedgerPitches) {
+          if (pitch >= ledgerPitch) ledgerYs.add(yForPitch(ledgerPitch));
+        }
+        if (grand && pitch === pitchIndex("C", 4)) ledgerYs.add(yForPitch(pitchIndex("C", 4)));
+        for (const ledgerPitch of lowerLedgerPitches) {
+          if (pitch <= ledgerPitch) ledgerYs.add(yForPitch(ledgerPitch));
+        }
+
+        for (const lineY of ledgerYs) {
+          staff.append(svgElement("line", {
+            x1: 325, x2: 385, y1: lineY, y2: lineY, class: "ledger-line"
+          }));
+        }
+
+        // Staff space is 20px. The notehead fills one space (≈19.4px tall
+        // including its stroke) and is tilted like an engraved notehead.
+        const noteX = 355;
+        staff.append(svgElement("ellipse", {
+          cx: noteX, cy: y, rx: 12.5, ry: 8.5, class: "notehead",
+          transform: `rotate(-20 ${noteX} ${y})`
+        }));
+
+        // Stem direction follows the middle line of the note's own staff:
+        // below the middle line → stem up; on or above it → stem down.
+        // In the grand staff, middle C (y = 220) and above belong to the treble staff.
+        const onBassStaff = grand && y > 220;
+        const middleLineY = onBassStaff ? 280 : 160;
+        const stemUp = y > middleLineY;
+
+        // Standard stem length is 3.5 spaces (70px), but notes on ledger lines
+        // far from the staff get a longer stem that reaches the middle line.
+        const STEM_LENGTH = 70;
+        const stemEndY = stemUp
+          ? Math.min(y - STEM_LENGTH, middleLineY)
+          : Math.max(y + STEM_LENGTH, middleLineY);
+
+        // Attach the stem at the notehead's edge: right side for up-stems,
+        // left side for down-stems (the tilt lifts the right edge slightly).
+        const stemX = stemUp ? noteX + 11.5 : noteX - 11.5;
+        staff.append(svgElement("line", {
+          x1: stemX,
+          x2: stemX,
+          y1: stemUp ? y - 2 : y + 2,
+          y2: stemEndY,
+          class: "stem"
+        }));
+        staff.setAttribute("aria-label", `${grand ? "Grand staff" : "Treble staff"}, note displayed`);
+      }
+
+      function setNextNote() {
+        const pitches = getPitches();
+        const available = pitches.filter(pitch => pitch !== previousPitch);
+        const choices = available.length ? available : pitches;
+        currentNote = choices[Math.floor(Math.random() * choices.length)];
+        previousPitch = currentNote;
+        drawStaff(currentNote);
+        description.textContent = `Level ${level} · ${pitches.length} ${pitches.length === 1 ? "note" : "notes"}`;
+        feedback.textContent = "Which note is this?";
+        feedback.className = "feedback";
+      }
+
+      function answer(letter) {
+        if (currentNote === null) return;
+        const noteLetter = LETTERS[currentNote % 7];
+        if (letter === noteLetter) {
+          score += 1;
+          scoreDisplay.textContent = String(score);
+          feedback.textContent = "Correct! Here comes the next note.";
+          feedback.className = "feedback correct";
+          currentNote = null;
+          window.setTimeout(setNextNote, 550);
+        } else {
+          feedback.textContent = "Not quite. Try another letter.";
+          feedback.className = "feedback incorrect";
+        }
+      }
+
+      function updateModeButtons() {
+        modeButtons.forEach(button => {
+          button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
+        });
+      }
+
+      levelSelect.addEventListener("change", () => {
+        level = Number(levelSelect.value);
+        saveSettings();
+        setNextNote();
+      });
+
+      modeButtons.forEach(button => {
+        button.addEventListener("click", () => {
+          mode = button.dataset.mode;
+          updateModeButtons();
+          saveSettings();
+          setNextNote();
+        });
+      });
+
+      document.querySelectorAll(".answer-button").forEach(button => {
+        button.addEventListener("click", () => answer(button.dataset.letter));
+      });
+
+      document.addEventListener("keydown", event => {
+        if (event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLSelectElement) return;
+        const letter = event.key.toUpperCase();
+        if (LETTERS.includes(letter)) answer(letter);
+      });
+
+      readSettings();
+      setNextNote();
+    })();
+  </script>
+</body>
+</html>
