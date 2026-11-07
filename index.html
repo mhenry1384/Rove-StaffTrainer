@@ -106,7 +106,8 @@
       font-weight: 650;
     }
 
-    .mode-setting { flex: 1 1 340px; }
+    .mode-setting { flex: 1 1 300px; }
+    .quiz-setting { flex: 1 1 240px; }
 
     .mode-switch {
       display: flex;
@@ -165,6 +166,8 @@
       margin: 0 auto;
     }
 
+    .staff-wrap.find { width: 100%; }
+
     svg {
       display: block;
       width: 100%;
@@ -201,12 +204,61 @@
       stroke-linecap: round;
     }
 
+    .highlight-box {
+      fill: #355de524;
+      stroke: var(--blue);
+      stroke-width: 1.5;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .zoom-box {
+      fill: #355de50f;
+      stroke: var(--blue);
+      stroke-width: 2.5;
+    }
+
+    .zoom-connector {
+      stroke: var(--blue);
+      stroke-width: 1.2;
+      stroke-dasharray: 5 5;
+      opacity: .7;
+    }
+
+    .zoom-line {
+      stroke: #344052;
+      stroke-width: 3;
+    }
+
+    .zoom-note { stroke-width: 3; }
+    .zoom-note.ghost { fill: #355de540; stroke: #355de599; }
+    .zoom-note.correct, .notehead.correct { fill: var(--green); stroke: var(--green); }
+    .zoom-note.wrong { fill: var(--red); stroke: var(--red); opacity: .8; }
+
+    .zoom-hit {
+      fill: transparent;
+      pointer-events: all;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .zoom-hit:focus-visible {
+      stroke: #8da3ff;
+      stroke-width: 3;
+    }
+
     .feedback {
       min-height: 28px;
       margin: 4px 0 14px;
       color: var(--muted);
       font-size: .95rem;
       font-weight: 700;
+    }
+
+    .feedback .target-letter {
+      color: var(--blue);
+      font-size: 1.7rem;
+      font-weight: 850;
+      vertical-align: -2px;
     }
 
     .feedback.correct { color: var(--green); }
@@ -240,6 +292,8 @@
 
     .answer-button:active { transform: translateY(0); }
 
+    .answer-buttons[hidden] { display: none; }
+
     .storage-notice {
       display: none;
       margin: 14px auto 0;
@@ -259,7 +313,7 @@
       body { padding: 24px 12px 32px; }
       .settings { gap: 14px; padding: 17px 16px; }
       .level-setting { width: 120px; }
-      .mode-setting { flex-basis: 100%; }
+      .mode-setting, .quiz-setting { flex-basis: 100%; }
       .mode-button { font-size: .78rem; }
       .practice { padding: 15px 10px 21px; }
       .answer-buttons { gap: 6px; }
@@ -288,6 +342,14 @@
             <button class="mode-button" type="button" data-mode="treble" aria-pressed="false">Treble · guitar range</button>
           </div>
         </div>
+        <div class="quiz-setting">
+          <span class="setting-label">Question</span>
+          <div class="mode-switch" role="group" aria-label="Choose question type">
+            <button class="mode-button" type="button" data-quiz="name" aria-pressed="true">Name it</button>
+            <button class="mode-button" type="button" data-quiz="find" aria-pressed="false">Find it</button>
+            <button class="mode-button" type="button" data-quiz="both" aria-pressed="false">Both</button>
+          </div>
+        </div>
       </div>
 
       <div class="practice">
@@ -295,11 +357,11 @@
           <span id="level-description">Level 1 · 3 notes</span>
           <span>Correct: <strong id="score">0</strong></span>
         </div>
-        <div class="staff-wrap">
+        <div id="staff-wrap" class="staff-wrap">
           <svg id="staff" viewBox="0 0 700 440" role="img" aria-label="A note on the grand staff"></svg>
         </div>
         <p id="feedback" class="feedback" aria-live="polite">Which note is this?</p>
-        <div class="answer-buttons" role="group" aria-label="Choose the note name">
+        <div id="answer-buttons" class="answer-buttons" role="group" aria-label="Choose the note name">
           <button class="answer-button" type="button" data-letter="A">A</button>
           <button class="answer-button" type="button" data-letter="B">B</button>
           <button class="answer-button" type="button" data-letter="C">C</button>
@@ -309,7 +371,7 @@
           <button class="answer-button" type="button" data-letter="G">G</button>
         </div>
         <p id="storage-notice" class="storage-notice" role="status"></p>
-        <p class="hint">Notes are natural (no sharps or flats). You can also answer with the A–G keys.</p>
+        <p id="hint" class="hint">Notes are natural (no sharps or flats). You can also answer with the A–G keys.</p>
       </div>
     </section>
   </main>
@@ -325,8 +387,14 @@
       const feedback = document.querySelector("#feedback");
       const scoreDisplay = document.querySelector("#score");
       const storageNotice = document.querySelector("#storage-notice");
-      const modeButtons = [...document.querySelectorAll(".mode-button")];
+      const modeButtons = [...document.querySelectorAll("[data-mode]")];
+      const quizButtons = [...document.querySelectorAll("[data-quiz]")];
+      const staffWrap = document.querySelector("#staff-wrap");
+      const answerButtons = document.querySelector("#answer-buttons");
+      const hint = document.querySelector("#hint");
       let mode = "grand";
+      let quiz = "name";          // setting: "name", "find" or "both"
+      let questionType = "name";  // type of the question currently shown
       let level = 1;
       let currentNote = null;
       let previousPitch = null;
@@ -348,6 +416,9 @@
           if (saved.mode === "grand" || saved.mode === "treble") {
             mode = saved.mode;
           }
+          if (["name", "find", "both"].includes(saved.quiz)) {
+            quiz = saved.quiz;
+          }
         } catch {
           showStorageNotice("Saved settings could not be read. Your choices may not persist in this browser.");
         }
@@ -357,7 +428,7 @@
 
       function saveSettings() {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ level, mode }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ level, mode, quiz }));
           storageNotice.classList.remove("visible");
         } catch {
           showStorageNotice("Settings could not be saved. Check this browser's storage permissions.");
@@ -373,9 +444,12 @@
         return octave * 7 + LETTER_INDEX[letter];
       }
 
+      function pitchRange() {
+        return [mode === "grand" ? pitchIndex("A", 1) : pitchIndex("F", 3), pitchIndex("E", 6)];
+      }
+
       function getPitches() {
-        const min = mode === "grand" ? pitchIndex("A", 1) : pitchIndex("F", 3);
-        const max = pitchIndex("E", 6);
+        const [min, max] = pitchRange();
         const center = pitchIndex("C", 4);
         const pitches = [];
         for (let pitch = min; pitch <= max; pitch += 1) pitches.push(pitch);
@@ -394,32 +468,48 @@
         return element;
       }
 
-      function drawStaff(pitch) {
-        staff.replaceChildren();
-        const grand = mode === "grand";
-        const staffLines = grand
+      const yForPitch = value => 200 - (value - pitchIndex("E", 4)) * 10;
+
+      function staffLineYs() {
+        return mode === "grand"
           ? [120, 140, 160, 180, 200, 240, 260, 280, 300, 320]
           : [120, 140, 160, 180, 200];
-        staffLines.forEach(y => staff.append(svgElement("line", {
-          x1: 65, x2: 635, y1: y, y2: y, class: "staff-line"
-        })));
+      }
 
-        const trebleClef = svgElement("text", { x: 115, y: 198, class: "clef" });
-        trebleClef.textContent = "𝄞";
+      function ledgerPitchSets() {
+        const grand = mode === "grand";
+        return {
+          upper: [pitchIndex("A", 5), pitchIndex("C", 6), pitchIndex("E", 6)],
+          lower: grand
+            ? [pitchIndex("E", 2), pitchIndex("C", 2), pitchIndex("A", 1)]
+            : [pitchIndex("C", 4), pitchIndex("A", 3), pitchIndex("F", 3)],
+          middle: grand ? [pitchIndex("C", 4)] : []
+        };
+      }
+
+      function drawStaffBase(x1, x2, clefX) {
+        staffLineYs().forEach(y => staff.append(svgElement("line", {
+          x1, x2, y1: y, y2: y, class: "staff-line"
+        })));
+        const trebleClef = svgElement("text", { x: clefX, y: 198, class: "clef" });
+        trebleClef.textContent = "\u{1D11E}";
         staff.append(trebleClef);
-        if (grand) {
-          const bassClef = svgElement("text", { x: 115, y: 316, class: "clef bass" });
-          bassClef.textContent = "𝄢";
+        if (mode === "grand") {
+          const bassClef = svgElement("text", { x: clefX, y: 316, class: "clef bass" });
+          bassClef.textContent = "\u{1D122}";
           staff.append(bassClef);
         }
+      }
 
-        const yForPitch = value => 200 - (value - pitchIndex("E", 4)) * 10;
+      function drawStaff(pitch) {
+        staff.replaceChildren();
+        staff.setAttribute("viewBox", "0 0 700 440");
+        const grand = mode === "grand";
+        drawStaffBase(65, 635, 115);
+
         const y = yForPitch(pitch);
         const ledgerYs = new Set();
-        const upperLedgerPitches = [pitchIndex("A", 5), pitchIndex("C", 6), pitchIndex("E", 6)];
-        const lowerLedgerPitches = grand
-          ? [pitchIndex("E", 2), pitchIndex("C", 2), pitchIndex("A", 1)]
-          : [pitchIndex("C", 4), pitchIndex("A", 3), pitchIndex("F", 3)];
+        const { upper: upperLedgerPitches, lower: lowerLedgerPitches } = ledgerPitchSets();
         for (const ledgerPitch of upperLedgerPitches) {
           if (pitch >= ledgerPitch) ledgerYs.add(yForPitch(ledgerPitch));
         }
@@ -469,16 +559,202 @@
         staff.setAttribute("aria-label", `${grand ? "Grand staff" : "Treble staff"}, note displayed`);
       }
 
+      // ---- "Find the note" mode -------------------------------------------
+      // A window of 7 consecutive natural notes (one of each letter) is
+      // highlighted on the staff and enlarged to the right; the player clicks
+      // the line or space in the enlarged view that matches the target letter.
+      const FIND = {
+        boxX: 290, boxW: 80,     // highlight box on the main staff
+        pad: 15,                 // 1.5 steps beyond the window so neighbouring lines show
+        scale: 3.2,              // enlargement factor
+        zoomX: 530, zoomW: 420, centerY: 220
+      };
+      let findWindow = null;     // [lowPitch, highPitch]
+      let markFind = () => {};
+
+      function pickWindow(target) {
+        const [min, max] = pitchRange();
+        const lowestStart = Math.max(min, target - 6);
+        const highestStart = Math.min(max - 6, target);
+        const start = lowestStart + Math.floor(Math.random() * (highestStart - lowestStart + 1));
+        return [start, start + 6];
+      }
+
+      function windowLedgerPitches(lo, hi) {
+        const { upper, lower, middle } = ledgerPitchSets();
+        return [...upper, ...lower, ...middle].filter(pitch => pitch >= lo && pitch <= hi);
+      }
+
+      function drawFindQuestion() {
+        staff.replaceChildren();
+        staff.setAttribute("viewBox", "0 0 980 440");
+        drawStaffBase(30, 470, 80);
+
+        const [lo, hi] = findWindow;
+        const top = yForPitch(hi) - FIND.pad;
+        const bottom = yForPitch(lo) + FIND.pad;
+        const ledgers = windowLedgerPitches(lo, hi);
+        const mainNoteX = FIND.boxX + FIND.boxW / 2;
+
+        for (const pitch of ledgers) {
+          const y = yForPitch(pitch);
+          staff.append(svgElement("line", {
+            x1: mainNoteX - 26, x2: mainNoteX + 26, y1: y, y2: y, class: "ledger-line"
+          }));
+        }
+        const mainLayer = svgElement("g");
+        staff.append(mainLayer);
+        staff.append(svgElement("rect", {
+          x: FIND.boxX, y: top, width: FIND.boxW, height: bottom - top, rx: 4, class: "highlight-box"
+        }));
+
+        // Enlarged view
+        const S = FIND.scale;
+        const zoomH = (bottom - top) * S;
+        const zoomTop = FIND.centerY - zoomH / 2;
+        const mapY = y => zoomTop + (y - top) * S;
+        const zoomNoteX = FIND.zoomX + FIND.zoomW / 2;
+
+        staff.append(svgElement("line", {
+          x1: FIND.boxX + FIND.boxW, y1: top, x2: FIND.zoomX + 8, y2: zoomTop, class: "zoom-connector"
+        }));
+        staff.append(svgElement("line", {
+          x1: FIND.boxX + FIND.boxW, y1: bottom, x2: FIND.zoomX + 8, y2: zoomTop + zoomH, class: "zoom-connector"
+        }));
+        staff.append(svgElement("rect", {
+          x: FIND.zoomX, y: zoomTop, width: FIND.zoomW, height: zoomH, rx: 16, class: "zoom-box"
+        }));
+
+        for (const y of staffLineYs()) {
+          if (y > top && y < bottom) {
+            staff.append(svgElement("line", {
+              x1: FIND.zoomX, x2: FIND.zoomX + FIND.zoomW, y1: mapY(y), y2: mapY(y), class: "zoom-line"
+            }));
+          }
+        }
+        for (const pitch of ledgers) {
+          const y = mapY(yForPitch(pitch));
+          staff.append(svgElement("line", {
+            x1: zoomNoteX - 72, x2: zoomNoteX + 72, y1: y, y2: y, class: "zoom-line"
+          }));
+        }
+
+        const zoomLayer = svgElement("g");
+        staff.append(zoomLayer);
+
+        function placeZoomNote(note, pitch) {
+          const y = mapY(yForPitch(pitch));
+          note.setAttribute("cx", zoomNoteX);
+          note.setAttribute("cy", y);
+          note.setAttribute("transform", `rotate(-20 ${zoomNoteX} ${y})`);
+        }
+
+        function zoomNote(pitch, kind) {
+          const note = svgElement("ellipse", {
+            rx: 12.5 * S, ry: 8.5 * S, class: `notehead zoom-note ${kind}`
+          });
+          placeZoomNote(note, pitch);
+          zoomLayer.append(note);
+          return note;
+        }
+
+        const ghost = zoomNote(lo, "ghost");
+        ghost.style.display = "none";
+
+        const hits = svgElement("g");
+        for (let pitch = hi; pitch >= lo; pitch -= 1) {
+          const y = mapY(yForPitch(pitch));
+          const hit = svgElement("rect", {
+            x: FIND.zoomX, y: y - 5 * S, width: FIND.zoomW, height: 10 * S,
+            class: "zoom-hit", tabindex: 0, role: "button",
+            "aria-label": `Position ${hi - pitch + 1} of 7, counting from the top`
+          });
+          const showGhost = () => {
+            if (currentNote === null) return;
+            placeZoomNote(ghost, pitch);
+            ghost.style.display = "";
+          };
+          hit.addEventListener("pointerenter", showGhost);
+          hit.addEventListener("focus", showGhost);
+          hit.addEventListener("click", () => answerFind(pitch));
+          hit.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              answerFind(pitch);
+            }
+          });
+          hits.append(hit);
+        }
+        hits.addEventListener("pointerleave", () => { ghost.style.display = "none"; });
+        hits.addEventListener("focusout", () => { ghost.style.display = "none"; });
+        staff.append(hits);
+
+        markFind = (pitch, kind) => {
+          zoomLayer.querySelectorAll(".wrong, .correct").forEach(node => node.remove());
+          zoomNote(pitch, kind);
+          if (kind === "correct") {
+            ghost.style.display = "none";
+            const y = yForPitch(pitch);
+            mainLayer.append(svgElement("ellipse", {
+              cx: mainNoteX, cy: y, rx: 12.5, ry: 8.5, class: "notehead correct",
+              transform: `rotate(-20 ${mainNoteX} ${y})`
+            }));
+          }
+        };
+
+        staff.setAttribute("aria-label",
+          `${mode === "grand" ? "Grand staff" : "Treble staff"} with seven notes highlighted and enlarged`);
+      }
+
+      function setFindPrompt(prefix = "") {
+        const letter = document.createElement("span");
+        letter.className = "target-letter";
+        letter.textContent = LETTERS[currentNote % 7];
+        feedback.replaceChildren(`${prefix}Find the `, letter, " in the blue box.");
+      }
+
+      function answerFind(pitch) {
+        if (currentNote === null) return;
+        const target = LETTERS[currentNote % 7];
+        const clicked = LETTERS[pitch % 7];
+        if (clicked === target) {
+          markFind(pitch, "correct");
+          score += 1;
+          scoreDisplay.textContent = String(score);
+          feedback.textContent = `Correct! That's ${target}.`;
+          feedback.className = "feedback correct";
+          currentNote = null;
+          window.setTimeout(setNextNote, 750);
+        } else {
+          markFind(pitch, "wrong");
+          setFindPrompt(`That's ${clicked}. `);
+          feedback.className = "feedback incorrect";
+        }
+      }
+
       function setNextNote() {
         const pitches = getPitches();
         const available = pitches.filter(pitch => pitch !== previousPitch);
         const choices = available.length ? available : pitches;
         currentNote = choices[Math.floor(Math.random() * choices.length)];
         previousPitch = currentNote;
-        drawStaff(currentNote);
         description.textContent = `Level ${level} · ${pitches.length} ${pitches.length === 1 ? "note" : "notes"}`;
-        feedback.textContent = "Which note is this?";
         feedback.className = "feedback";
+        questionType = quiz === "both" ? (Math.random() < .5 ? "name" : "find") : quiz;
+        const finding = questionType === "find";
+        staffWrap.classList.toggle("find", finding);
+        answerButtons.hidden = finding;
+        hint.textContent = finding
+          ? "Notes are natural (no sharps or flats). Click the matching line or space in the enlarged box."
+          : "Notes are natural (no sharps or flats). You can also answer with the A–G keys.";
+        if (finding) {
+          findWindow = pickWindow(currentNote);
+          drawFindQuestion();
+          setFindPrompt();
+        } else {
+          drawStaff(currentNote);
+          feedback.textContent = "Which note is this?";
+        }
       }
 
       function answer(letter) {
@@ -501,6 +777,9 @@
         modeButtons.forEach(button => {
           button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
         });
+        quizButtons.forEach(button => {
+          button.setAttribute("aria-pressed", String(button.dataset.quiz === quiz));
+        });
       }
 
       levelSelect.addEventListener("change", () => {
@@ -518,12 +797,22 @@
         });
       });
 
+      quizButtons.forEach(button => {
+        button.addEventListener("click", () => {
+          quiz = button.dataset.quiz;
+          updateModeButtons();
+          saveSettings();
+          setNextNote();
+        });
+      });
+
       document.querySelectorAll(".answer-button").forEach(button => {
         button.addEventListener("click", () => answer(button.dataset.letter));
       });
 
       document.addEventListener("keydown", event => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLSelectElement) return;
+        if (questionType !== "name") return;
         const letter = event.key.toUpperCase();
         if (LETTERS.includes(letter)) answer(letter);
       });
