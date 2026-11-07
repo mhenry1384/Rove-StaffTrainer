@@ -216,29 +216,24 @@
     .round-info strong { color: var(--ink); }
 
     .staff-wrap {
-      width: min(680px, 100%);
+      width: 100%;
       margin: 0 auto;
     }
 
-    .staff-wrap.find { width: 100%; }
-
+    /* Both question types draw the staff at the same fixed, enlarged size
+       (width set from script); it only shrinks when the screen is too narrow. */
     #staff {
       display: block;
       width: 100%;
+      max-width: 100%;
       height: auto;
       margin: 0 auto;
       overflow: visible;
     }
 
-    /* In "Find it" the staff is drawn at a fixed, enlarged size (width set
-       from script) and only shrinks when the screen is too narrow. */
-    .staff-wrap.find #staff { max-width: 100%; }
-    .staff-wrap.find .staff-line,
-    .staff-wrap.find .ledger-line { stroke-width: 2.4; }
-
     .staff-line, .ledger-line {
       stroke: #344052;
-      stroke-width: 1.5;
+      stroke-width: 2.4;
       vector-effect: non-scaling-stroke;
     }
 
@@ -436,7 +431,6 @@
       const storageNotice = document.querySelector("#storage-notice");
       const modeButtons = [...document.querySelectorAll("[data-mode]")];
       const quizButtons = [...document.querySelectorAll("[data-quiz]")];
-      const staffWrap = document.querySelector("#staff-wrap");
       const answerButtons = document.querySelector("#answer-buttons");
       const hint = document.querySelector("#hint");
       const optionsButton = document.querySelector("#options-button");
@@ -612,12 +606,39 @@
         staff.append(clef);
       }
 
+      // ---- Shared staff layout ---------------------------------------------
+      // "Name it" and "Find it" use the exact same enlarged staff and viewBox,
+      // so switching between question types doesn't move or resize anything.
+      const LAYOUT = {
+        pxPerUnit: 2.5,          // enlarged size: one staff space (20 units) ≈ 50px
+        width: 300,              // viewBox width
+        lineX1: 15, lineX2: 285, clefX: 62,
+        boxX: 135, boxW: 120,    // "Find it" highlight box (also the clickable area)
+        boxPad: 7,               // box reaches just past the outer notes, but stops
+                                 // short of the next line/space (10 units away)
+        viewMargin: 25           // room beyond the furthest window so neighbours show
+      };
+      const NOTE_X = LAYOUT.boxX + LAYOUT.boxW / 2;
+
+      function setupView() {
+        // The viewBox spans every "Find it" window the current level can produce
+        // (plus the staff itself) so the staff stays put from question to question.
+        const [rangeMin, rangeMax] = pitchRange();
+        const levelPitches = getPitches();
+        const reachLow = Math.max(rangeMin, levelPitches[0] - 6);
+        const reachHigh = Math.min(rangeMax, levelPitches[levelPitches.length - 1] + 6);
+        const lineYs = staffLineYs();
+        const viewTop = Math.min(yForPitch(reachHigh) - LAYOUT.viewMargin, lineYs[0] - 50);
+        const viewBottom = Math.max(yForPitch(reachLow) + LAYOUT.viewMargin, lineYs[lineYs.length - 1] + 30);
+        staff.setAttribute("viewBox", `0 ${viewTop} ${LAYOUT.width} ${viewBottom - viewTop}`);
+        staff.style.width = `${LAYOUT.width * LAYOUT.pxPerUnit}px`;
+        drawStaffBase(LAYOUT.lineX1, LAYOUT.lineX2, LAYOUT.clefX);
+      }
+
       function drawStaff(pitch) {
         staff.replaceChildren();
-        staff.setAttribute("viewBox", "0 0 700 440");
-        staff.style.width = "";
+        setupView();
         const grand = mode === "grand";
-        drawStaffBase(65, 635, 115);
 
         const y = yForPitch(pitch);
         const ledgerYs = new Set();
@@ -632,13 +653,13 @@
 
         for (const lineY of ledgerYs) {
           staff.append(svgElement("line", {
-            x1: 325, x2: 385, y1: lineY, y2: lineY, class: "ledger-line"
+            x1: NOTE_X - 26, x2: NOTE_X + 26, y1: lineY, y2: lineY, class: "ledger-line"
           }));
         }
 
         // Staff space is 20px. The notehead fills one space (≈19.4px tall
         // including its stroke) and is tilted like an engraved notehead.
-        const noteX = 355;
+        const noteX = NOTE_X;
         staff.append(svgElement("ellipse", {
           cx: noteX, cy: y, rx: 12.5, ry: 8.5, class: "notehead",
           transform: `rotate(-20 ${noteX} ${y})`
@@ -673,15 +694,8 @@
 
       // ---- "Find the note" mode -------------------------------------------
       // A window of 7 consecutive natural notes (one of each letter) is
-      // highlighted on an enlarged, narrower staff; the player clicks the line
-      // or space inside the blue box that matches the target letter.
-      const FIND = {
-        pxPerUnit: 2.5,          // enlarged size: one staff space (20 units) ≈ 50px
-        width: 300,              // viewBox width (narrower than the "Name it" staff)
-        lineX1: 15, lineX2: 285, clefX: 62,
-        boxX: 135, boxW: 120,    // highlight box (also the clickable area)
-        pad: 15                  // 1.5 steps beyond the window so neighbouring lines show
-      };
+      // highlighted on the staff; the player clicks the line or space inside
+      // the blue box that matches the target letter.
       let findWindow = null;     // [lowPitch, highPitch]
       let markFind = () => {};
 
@@ -700,24 +714,12 @@
 
       function drawFindQuestion() {
         staff.replaceChildren();
-        // The viewBox spans every window the current level can produce (plus the
-        // staff itself) so the staff stays put from question to question.
-        const [rangeMin, rangeMax] = pitchRange();
-        const levelPitches = getPitches();
-        const reachLow = Math.max(rangeMin, levelPitches[0] - 6);
-        const reachHigh = Math.min(rangeMax, levelPitches[levelPitches.length - 1] + 6);
-        const lineYs = staffLineYs();
-        const viewTop = Math.min(yForPitch(reachHigh) - FIND.pad, lineYs[0] - 40) - 10;
-        const viewBottom = Math.max(yForPitch(reachLow) + FIND.pad, lineYs[lineYs.length - 1] + 20) + 10;
-        const viewHeight = viewBottom - viewTop;
-        staff.setAttribute("viewBox", `0 ${viewTop} ${FIND.width} ${viewHeight}`);
-        staff.style.width = `${FIND.width * FIND.pxPerUnit}px`;
-        drawStaffBase(FIND.lineX1, FIND.lineX2, FIND.clefX);
+        setupView();
 
         const [lo, hi] = findWindow;
-        const top = yForPitch(hi) - FIND.pad;
-        const bottom = yForPitch(lo) + FIND.pad;
-        const noteX = FIND.boxX + FIND.boxW / 2;
+        const top = yForPitch(hi) - LAYOUT.boxPad;
+        const bottom = yForPitch(lo) + LAYOUT.boxPad;
+        const noteX = NOTE_X;
 
         for (const pitch of windowLedgerPitches(lo, hi)) {
           const y = yForPitch(pitch);
@@ -726,7 +728,7 @@
           }));
         }
         staff.append(svgElement("rect", {
-          x: FIND.boxX, y: top, width: FIND.boxW, height: bottom - top, rx: 4, class: "highlight-box"
+          x: LAYOUT.boxX, y: top, width: LAYOUT.boxW, height: bottom - top, rx: 4, class: "highlight-box"
         }));
 
         const noteLayer = svgElement("g");
@@ -753,7 +755,7 @@
         for (let pitch = hi; pitch >= lo; pitch -= 1) {
           const y = yForPitch(pitch);
           const hit = svgElement("rect", {
-            x: FIND.boxX, y: y - 5, width: FIND.boxW, height: 10,
+            x: LAYOUT.boxX, y: y - 5, width: LAYOUT.boxW, height: 10,
             class: "find-hit", tabindex: 0, role: "button",
             "aria-label": `Position ${hi - pitch + 1} of 7, counting from the top`
           });
@@ -800,6 +802,7 @@
         const clicked = LETTERS[pitch % 7];
         if (clicked === target) {
           markFind(pitch, "correct");
+          recordRight();
           score += 1;
           scoreDisplay.textContent = String(score);
           feedback.textContent = `Correct! That's ${target}.`;
@@ -808,22 +811,62 @@
           window.setTimeout(setNextNote, 750);
         } else {
           markFind(pitch, "wrong");
+          recordWrong();
           setFindPrompt(`That's ${clicked}. `);
           feedback.className = "feedback incorrect";
         }
       }
 
-      function setNextNote() {
-        const pitches = getPitches();
+      // ---- Review of missed notes ------------------------------------------
+      // A note answered wrong comes back after a couple of other questions, and
+      // keeps coming back (at growing gaps) until it has been answered right
+      // REVIEW_STREAK times in a row without a mistake.
+      const REVIEW_STREAK = 3;
+      const review = new Map();   // pitch -> { remaining, due }
+      let questionCount = 0;
+      let missedThisQuestion = false;
+
+      function recordWrong() {
+        if (missedThisQuestion) return;
+        missedThisQuestion = true;
+        review.set(currentNote, { remaining: REVIEW_STREAK, due: questionCount + 3 });
+      }
+
+      function recordRight() {
+        const entry = review.get(currentNote);
+        if (!entry || missedThisQuestion) return;
+        entry.remaining -= 1;
+        if (entry.remaining <= 0) review.delete(currentNote);
+        else entry.due = questionCount + 2 + 3 * (REVIEW_STREAK - entry.remaining);
+      }
+
+      function chooseNote(pitches) {
         const available = pitches.filter(pitch => pitch !== previousPitch);
         const choices = available.length ? available : pitches;
-        currentNote = choices[Math.floor(Math.random() * choices.length)];
+        const dueNow = choices
+          .filter(pitch => review.has(pitch) && review.get(pitch).due <= questionCount)
+          .sort((a, b) => review.get(a).due - review.get(b).due);
+        if (dueNow.length) return dueNow[0];
+        // Otherwise pick at random, still favouring notes under review.
+        const weights = choices.map(pitch => (review.has(pitch) ? 3 : 1));
+        let roll = Math.random() * weights.reduce((sum, w) => sum + w, 0);
+        for (let i = 0; i < choices.length; i += 1) {
+          roll -= weights[i];
+          if (roll < 0) return choices[i];
+        }
+        return choices[choices.length - 1];
+      }
+
+      function setNextNote() {
+        const pitches = getPitches();
+        questionCount += 1;
+        missedThisQuestion = false;
+        currentNote = chooseNote(pitches);
         previousPitch = currentNote;
         description.textContent = `Level ${level} · ${pitches.length} ${pitches.length === 1 ? "note" : "notes"}`;
         feedback.className = "feedback";
         questionType = quiz === "both" ? (Math.random() < .5 ? "name" : "find") : quiz;
         const finding = questionType === "find";
-        staffWrap.classList.toggle("find", finding);
         answerButtons.hidden = finding;
         hint.textContent = finding
           ? "Click the matching line or space in the blue box."
@@ -842,6 +885,7 @@
         if (currentNote === null) return;
         const noteLetter = LETTERS[currentNote % 7];
         if (letter === noteLetter) {
+          recordRight();
           score += 1;
           scoreDisplay.textContent = String(score);
           feedback.textContent = "Correct! Here comes the next note.";
@@ -849,6 +893,7 @@
           currentNote = null;
           window.setTimeout(setNextNote, 550);
         } else {
+          recordWrong();
           feedback.textContent = "Not quite. Try another letter.";
           feedback.className = "feedback incorrect";
         }
