@@ -107,8 +107,61 @@
       font-weight: 650;
     }
 
-    .mode-setting { flex: 1 1 300px; }
-    .quiz-setting { flex: 1 1 240px; }
+    .options-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 650;
+    }
+
+    .options-button:hover { border-color: #9aabf4; background: #f5f7ff; }
+    .options-button svg { width: 18px; height: 18px; flex: none; }
+
+    dialog {
+      width: min(460px, calc(100% - 32px));
+      padding: 24px;
+      border: 0;
+      border-radius: 20px;
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 24px 60px #28334a33;
+    }
+
+    dialog::backdrop { background: #202b3c66; }
+
+    dialog h2 {
+      margin: 0 0 18px;
+      font-size: 1.25rem;
+      letter-spacing: -.02em;
+    }
+
+    .dialog-field { margin-bottom: 18px; }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 6px;
+    }
+
+    .done-button {
+      min-height: 42px;
+      padding: 0 22px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--blue);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .done-button:hover { background: var(--blue-dark); }
 
     .mode-switch {
       display: flex;
@@ -169,12 +222,19 @@
 
     .staff-wrap.find { width: 100%; }
 
-    svg {
+    #staff {
       display: block;
       width: 100%;
       height: auto;
+      margin: 0 auto;
       overflow: visible;
     }
+
+    /* In "Find it" the staff is drawn at a fixed, enlarged size (width set
+       from script) and only shrinks when the screen is too narrow. */
+    .staff-wrap.find #staff { max-width: 100%; }
+    .staff-wrap.find .staff-line,
+    .staff-wrap.find .ledger-line { stroke-width: 2.4; }
 
     .staff-line, .ledger-line {
       stroke: #344052;
@@ -182,16 +242,8 @@
       vector-effect: non-scaling-stroke;
     }
 
-    .clef {
-      fill: #25334b;
-      font-family: "Noto Music", "Segoe UI Symbol", "Apple Symbols", serif;
-      font-size: 78px;
-      text-anchor: middle;
-    }
-
-    .clef.bass {
-      font-size: 63px;
-    }
+    /* Size and position are set from script (see drawClef). */
+    .clef { fill: #25334b; }
 
     .notehead {
       fill: #26344b;
@@ -212,39 +264,20 @@
       vector-effect: non-scaling-stroke;
     }
 
-    .zoom-box {
-      fill: #355de50f;
-      stroke: var(--blue);
-      stroke-width: 2.5;
-    }
+    .notehead.ghost { fill: #355de540; stroke: #355de599; }
+    .notehead.correct { fill: var(--green); stroke: var(--green); }
+    .notehead.wrong { fill: var(--red); stroke: var(--red); opacity: .8; }
 
-    .zoom-connector {
-      stroke: var(--blue);
-      stroke-width: 1.2;
-      stroke-dasharray: 5 5;
-      opacity: .7;
-    }
-
-    .zoom-line {
-      stroke: #344052;
-      stroke-width: 3;
-    }
-
-    .zoom-note { stroke-width: 3; }
-    .zoom-note.ghost { fill: #355de540; stroke: #355de599; }
-    .zoom-note.correct, .notehead.correct { fill: var(--green); stroke: var(--green); }
-    .zoom-note.wrong { fill: var(--red); stroke: var(--red); opacity: .8; }
-
-    .zoom-hit {
+    .find-hit {
       fill: transparent;
       pointer-events: all;
       cursor: pointer;
       outline: none;
     }
 
-    .zoom-hit:focus-visible {
+    .find-hit:focus-visible {
       stroke: #8da3ff;
-      stroke-width: 3;
+      stroke-width: 1.5;
     }
 
     .feedback {
@@ -314,7 +347,6 @@
       body { padding: 24px 12px 32px; }
       .settings { gap: 14px; padding: 17px 16px; }
       .level-setting { width: 120px; }
-      .mode-setting, .quiz-setting { flex-basis: 100%; }
       .mode-button { font-size: .78rem; }
       .practice { padding: 15px 10px 21px; }
       .answer-buttons { gap: 6px; }
@@ -336,14 +368,25 @@
           <span class="setting-label">Difficulty</span>
           <select id="level" aria-label="Choose level"></select>
         </label>
-        <div class="mode-setting">
+        <button id="options-button" class="options-button" type="button" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/>
+            <circle cx="9" cy="7" r="2.5" fill="#fff"/><circle cx="15" cy="17" r="2.5" fill="#fff"/>
+          </svg>
+          <span>Options</span>
+        </button>
+      </div>
+
+      <dialog id="options-dialog" aria-labelledby="options-title">
+        <h2 id="options-title">Practice options</h2>
+        <div class="dialog-field">
           <span class="setting-label">Staff style</span>
           <div class="mode-switch" role="group" aria-label="Choose staff style">
             <button class="mode-button" type="button" data-mode="grand" aria-pressed="true">Grand staff</button>
             <button class="mode-button" type="button" data-mode="treble" aria-pressed="false">Treble · guitar range</button>
           </div>
         </div>
-        <div class="quiz-setting">
+        <div class="dialog-field">
           <span class="setting-label">Question</span>
           <div class="mode-switch" role="group" aria-label="Choose question type">
             <button class="mode-button" type="button" data-quiz="name" aria-pressed="true">Name it</button>
@@ -351,7 +394,10 @@
             <button class="mode-button" type="button" data-quiz="both" aria-pressed="false">Both</button>
           </div>
         </div>
-      </div>
+        <form method="dialog" class="dialog-actions">
+          <button class="done-button" type="submit">Done</button>
+        </form>
+      </dialog>
 
       <div class="practice">
         <div class="round-info">
@@ -372,7 +418,7 @@
           <button class="answer-button" type="button" data-letter="G">G</button>
         </div>
         <p id="storage-notice" class="storage-notice" role="status"></p>
-        <p id="hint" class="hint">Notes are natural (no sharps or flats). You can also answer with the A–G keys.</p>
+        <p id="hint" class="hint">You can also answer with the A–G keys.</p>
       </div>
     </section>
   </main>
@@ -393,6 +439,8 @@
       const staffWrap = document.querySelector("#staff-wrap");
       const answerButtons = document.querySelector("#answer-buttons");
       const hint = document.querySelector("#hint");
+      const optionsButton = document.querySelector("#options-button");
+      const optionsDialog = document.querySelector("#options-dialog");
       let mode = "grand";
       let quiz = "name";          // setting: "name", "find" or "both"
       let questionType = "name";  // type of the question currently shown
@@ -488,23 +536,86 @@
         };
       }
 
+      // Clefs come from a system font, and every font draws these glyphs at a
+      // different size and baseline. So measure the glyph's actual ink bounds
+      // and scale/position it to standard engraving proportions (in staff
+      // spaces, from the SMuFL reference font Bravura):
+      //   treble clef: 4.39 spaces above to 2.63 below the G line (2nd line)
+      //   bass clef:   1.04 spaces above to 2.54 below the F line (4th line),
+      //                so its top meets the top line and its dots straddle F.
+      const CLEF_FONT = '"Noto Music", "Segoe UI Symbol", "Apple Symbols", serif';
+      const SPACE = 20;
+      const glyphMetrics = new Map();
+
+      function measureGlyph(glyph) {
+        if (!glyphMetrics.has(glyph)) {
+          const context = document.createElement("canvas").getContext("2d");
+          context.font = `100px ${CLEF_FONT}`;
+          const m = context.measureText(glyph);
+          glyphMetrics.set(glyph, {
+            ascent: m.actualBoundingBoxAscent,
+            height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent,
+            left: m.actualBoundingBoxLeft,
+            width: m.actualBoundingBoxLeft + m.actualBoundingBoxRight
+          });
+        }
+        return glyphMetrics.get(glyph);
+      }
+
+      function drawClef(glyph, centerX, top, bottom) {
+        const m = measureGlyph(glyph);
+        const scale = (bottom - top) / m.height;        // per 100px of font size
+        const clef = svgElement("text", {
+          x: centerX - (m.width / 2 - m.left) * scale,
+          y: top + m.ascent * scale,
+          class: "clef",
+          "font-size": 100 * scale,
+          "font-family": CLEF_FONT
+        });
+        clef.textContent = glyph;
+        staff.append(clef);
+      }
+
       function drawStaffBase(x1, x2, clefX) {
-        staffLineYs().forEach(y => staff.append(svgElement("line", {
+        const lines = staffLineYs();
+        lines.forEach(y => staff.append(svgElement("line", {
           x1, x2, y1: y, y2: y, class: "staff-line"
         })));
-        const trebleClef = svgElement("text", { x: clefX, y: 198, class: "clef" });
-        trebleClef.textContent = "\u{1D11E}";
-        staff.append(trebleClef);
-        if (mode === "grand") {
-          const bassClef = svgElement("text", { x: clefX, y: 316, class: "clef bass" });
-          bassClef.textContent = "\u{1D122}";
-          staff.append(bassClef);
-        }
+        const gLine = lines[3];
+        drawClef("\u{1D11E}", clefX, gLine - 4.39 * SPACE, gLine + 2.63 * SPACE);
+        if (mode === "grand") drawBassClef(clefX, lines[6]);
+      }
+
+      // System fonts disagree on the bass clef's proportions (often the dots
+      // land on lines instead of either side of F), so it is drawn as a path.
+      // Units are staff spaces, origin on the F line, y pointing down.
+      const BASS_CLEF_PATH = [
+        "M0.15 -0.35",
+        "C0.35 -0.85 0.75 -1.02 1.05 -1.02",
+        "C1.75 -1.02 2.1 -0.55 2.1 0.05",
+        "C2.1 1.2 1.2 2.1 0 2.6",
+        "L-0.03 2.47",
+        "C0.95 1.9 1.45 1.1 1.45 0.05",
+        "C1.45 -0.55 1.25 -0.84 0.95 -0.84",
+        "C0.72 -0.86 0.52 -0.72 0.45 -0.55Z"
+      ].join(" ");
+
+      function drawBassClef(centerX, fLine) {
+        const clef = svgElement("g", {
+          class: "clef",
+          transform: `translate(${centerX - 1.32 * SPACE} ${fLine}) scale(${SPACE})`
+        });
+        clef.append(svgElement("path", { d: BASS_CLEF_PATH }));
+        clef.append(svgElement("circle", { cx: 0.36, cy: 0, r: 0.34 }));   // head on the F line
+        clef.append(svgElement("circle", { cx: 2.5, cy: -0.5, r: 0.15 })); // dots in the spaces
+        clef.append(svgElement("circle", { cx: 2.5, cy: 0.5, r: 0.15 }));  // above and below F
+        staff.append(clef);
       }
 
       function drawStaff(pitch) {
         staff.replaceChildren();
         staff.setAttribute("viewBox", "0 0 700 440");
+        staff.style.width = "";
         const grand = mode === "grand";
         drawStaffBase(65, 635, 115);
 
@@ -562,13 +673,14 @@
 
       // ---- "Find the note" mode -------------------------------------------
       // A window of 7 consecutive natural notes (one of each letter) is
-      // highlighted on the staff and enlarged to the right; the player clicks
-      // the line or space in the enlarged view that matches the target letter.
+      // highlighted on an enlarged, narrower staff; the player clicks the line
+      // or space inside the blue box that matches the target letter.
       const FIND = {
-        boxX: 290, boxW: 80,     // highlight box on the main staff
-        pad: 15,                 // 1.5 steps beyond the window so neighbouring lines show
-        scale: 3.2,              // enlargement factor
-        zoomX: 530, zoomW: 420, centerY: 220
+        pxPerUnit: 2.5,          // enlarged size: one staff space (20 units) ≈ 50px
+        width: 300,              // viewBox width (narrower than the "Name it" staff)
+        lineX1: 15, lineX2: 285, clefX: 62,
+        boxX: 135, boxW: 120,    // highlight box (also the clickable area)
+        pad: 15                  // 1.5 steps beyond the window so neighbouring lines show
       };
       let findWindow = null;     // [lowPitch, highPitch]
       let markFind = () => {};
@@ -588,91 +700,66 @@
 
       function drawFindQuestion() {
         staff.replaceChildren();
-        staff.setAttribute("viewBox", "0 0 980 440");
-        drawStaffBase(30, 470, 80);
+        // The viewBox spans every window the current level can produce (plus the
+        // staff itself) so the staff stays put from question to question.
+        const [rangeMin, rangeMax] = pitchRange();
+        const levelPitches = getPitches();
+        const reachLow = Math.max(rangeMin, levelPitches[0] - 6);
+        const reachHigh = Math.min(rangeMax, levelPitches[levelPitches.length - 1] + 6);
+        const lineYs = staffLineYs();
+        const viewTop = Math.min(yForPitch(reachHigh) - FIND.pad, lineYs[0] - 40) - 10;
+        const viewBottom = Math.max(yForPitch(reachLow) + FIND.pad, lineYs[lineYs.length - 1] + 20) + 10;
+        const viewHeight = viewBottom - viewTop;
+        staff.setAttribute("viewBox", `0 ${viewTop} ${FIND.width} ${viewHeight}`);
+        staff.style.width = `${FIND.width * FIND.pxPerUnit}px`;
+        drawStaffBase(FIND.lineX1, FIND.lineX2, FIND.clefX);
 
         const [lo, hi] = findWindow;
         const top = yForPitch(hi) - FIND.pad;
         const bottom = yForPitch(lo) + FIND.pad;
-        const ledgers = windowLedgerPitches(lo, hi);
-        const mainNoteX = FIND.boxX + FIND.boxW / 2;
+        const noteX = FIND.boxX + FIND.boxW / 2;
 
-        for (const pitch of ledgers) {
+        for (const pitch of windowLedgerPitches(lo, hi)) {
           const y = yForPitch(pitch);
           staff.append(svgElement("line", {
-            x1: mainNoteX - 26, x2: mainNoteX + 26, y1: y, y2: y, class: "ledger-line"
+            x1: noteX - 26, x2: noteX + 26, y1: y, y2: y, class: "ledger-line"
           }));
         }
-        const mainLayer = svgElement("g");
-        staff.append(mainLayer);
         staff.append(svgElement("rect", {
           x: FIND.boxX, y: top, width: FIND.boxW, height: bottom - top, rx: 4, class: "highlight-box"
         }));
 
-        // Enlarged view
-        const S = FIND.scale;
-        const zoomH = (bottom - top) * S;
-        const zoomTop = FIND.centerY - zoomH / 2;
-        const mapY = y => zoomTop + (y - top) * S;
-        const zoomNoteX = FIND.zoomX + FIND.zoomW / 2;
+        const noteLayer = svgElement("g");
+        staff.append(noteLayer);
 
-        staff.append(svgElement("line", {
-          x1: FIND.boxX + FIND.boxW, y1: top, x2: FIND.zoomX + 8, y2: zoomTop, class: "zoom-connector"
-        }));
-        staff.append(svgElement("line", {
-          x1: FIND.boxX + FIND.boxW, y1: bottom, x2: FIND.zoomX + 8, y2: zoomTop + zoomH, class: "zoom-connector"
-        }));
-        staff.append(svgElement("rect", {
-          x: FIND.zoomX, y: zoomTop, width: FIND.zoomW, height: zoomH, rx: 16, class: "zoom-box"
-        }));
-
-        for (const y of staffLineYs()) {
-          if (y > top && y < bottom) {
-            staff.append(svgElement("line", {
-              x1: FIND.zoomX, x2: FIND.zoomX + FIND.zoomW, y1: mapY(y), y2: mapY(y), class: "zoom-line"
-            }));
-          }
-        }
-        for (const pitch of ledgers) {
-          const y = mapY(yForPitch(pitch));
-          staff.append(svgElement("line", {
-            x1: zoomNoteX - 72, x2: zoomNoteX + 72, y1: y, y2: y, class: "zoom-line"
-          }));
-        }
-
-        const zoomLayer = svgElement("g");
-        staff.append(zoomLayer);
-
-        function placeZoomNote(note, pitch) {
-          const y = mapY(yForPitch(pitch));
-          note.setAttribute("cx", zoomNoteX);
+        function placeNote(note, pitch) {
+          const y = yForPitch(pitch);
+          note.setAttribute("cx", noteX);
           note.setAttribute("cy", y);
-          note.setAttribute("transform", `rotate(-20 ${zoomNoteX} ${y})`);
+          note.setAttribute("transform", `rotate(-20 ${noteX} ${y})`);
         }
 
-        function zoomNote(pitch, kind) {
-          const note = svgElement("ellipse", {
-            rx: 12.5 * S, ry: 8.5 * S, class: `notehead zoom-note ${kind}`
-          });
-          placeZoomNote(note, pitch);
-          zoomLayer.append(note);
+        function addNote(pitch, kind) {
+          const note = svgElement("ellipse", { rx: 12.5, ry: 8.5, class: `notehead ${kind}` });
+          placeNote(note, pitch);
+          noteLayer.append(note);
           return note;
         }
 
-        const ghost = zoomNote(lo, "ghost");
+        const ghost = addNote(lo, "ghost");
         ghost.style.display = "none";
 
         const hits = svgElement("g");
         for (let pitch = hi; pitch >= lo; pitch -= 1) {
-          const y = mapY(yForPitch(pitch));
+          const y = yForPitch(pitch);
           const hit = svgElement("rect", {
-            x: FIND.zoomX, y: y - 5 * S, width: FIND.zoomW, height: 10 * S,
-            class: "zoom-hit", tabindex: 0, role: "button",
+            x: FIND.boxX, y: y - 5, width: FIND.boxW, height: 10,
+            class: "find-hit", tabindex: 0, role: "button",
             "aria-label": `Position ${hi - pitch + 1} of 7, counting from the top`
           });
           const showGhost = () => {
             if (currentNote === null) return;
-            placeZoomNote(ghost, pitch);
+            placeNote(ghost, pitch);
             ghost.style.display = "";
           };
           hit.addEventListener("pointerenter", showGhost);
@@ -691,20 +778,13 @@
         staff.append(hits);
 
         markFind = (pitch, kind) => {
-          zoomLayer.querySelectorAll(".wrong, .correct").forEach(node => node.remove());
-          zoomNote(pitch, kind);
-          if (kind === "correct") {
-            ghost.style.display = "none";
-            const y = yForPitch(pitch);
-            mainLayer.append(svgElement("ellipse", {
-              cx: mainNoteX, cy: y, rx: 12.5, ry: 8.5, class: "notehead correct",
-              transform: `rotate(-20 ${mainNoteX} ${y})`
-            }));
-          }
+          noteLayer.querySelectorAll(".wrong, .correct").forEach(node => node.remove());
+          addNote(pitch, kind);
+          if (kind === "correct") ghost.style.display = "none";
         };
 
         staff.setAttribute("aria-label",
-          `${mode === "grand" ? "Grand staff" : "Treble staff"} with seven notes highlighted and enlarged`);
+          `${mode === "grand" ? "Grand staff" : "Treble staff"} with seven notes highlighted`);
       }
 
       function setFindPrompt(prefix = "") {
@@ -746,8 +826,8 @@
         staffWrap.classList.toggle("find", finding);
         answerButtons.hidden = finding;
         hint.textContent = finding
-          ? "Notes are natural (no sharps or flats). Click the matching line or space in the enlarged box."
-          : "Notes are natural (no sharps or flats). You can also answer with the A–G keys.";
+          ? "Click the matching line or space in the blue box."
+          : "You can also answer with the A–G keys.";
         if (finding) {
           findWindow = pickWindow(currentNote);
           drawFindQuestion();
@@ -780,8 +860,12 @@
         });
         quizButtons.forEach(button => {
           button.setAttribute("aria-pressed", String(button.dataset.quiz === quiz));
-        });
-      }
+        });      }
+
+      optionsButton.addEventListener("click", () => optionsDialog.showModal());
+      optionsDialog.addEventListener("click", event => {
+        if (event.target === optionsDialog) optionsDialog.close(); // backdrop click
+      });
 
       levelSelect.addEventListener("change", () => {
         level = Number(levelSelect.value);
@@ -813,6 +897,7 @@
 
       document.addEventListener("keydown", event => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLSelectElement) return;
+        if (optionsDialog.open) return;
         if (questionType !== "name") return;
         const letter = event.key.toUpperCase();
         if (LETTERS.includes(letter)) answer(letter);
