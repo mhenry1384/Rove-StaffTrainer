@@ -330,7 +330,9 @@
       transition: transform .12s, border-color .12s, background .12s, color .12s;
     }
 
-    .answer-button:hover {
+    /* Set from script for real mouse hovers only: :hover sticks to the last
+       tapped button on touchscreens, which looks like a hint. */
+    .answer-button.mouse-over {
       transform: translateY(-2px);
       border-color: #9aabf4;
       background: #f5f7ff;
@@ -631,8 +633,10 @@
         width: 300,              // viewBox width
         lineX1: 15, lineX2: 285, clefX: 62,
         boxX: 115, boxW: 160,    // "Find it" highlight box (also the clickable area)
-        boxPad: 7,               // box reaches just past the outer notes, but stops
-                                 // short of the next line/space (10 units away)
+        // How far the box reaches past the outer notes' centers. A notehead
+        // extends about 9.7 units from its center. A note on a space is bounded
+        // by the box edge on the next line; a note on a line needs a little more.
+        boxPadSpace: 10, boxPadLine: 11,
         viewMargin: 25           // room beyond the furthest window so neighbours show
       };
       const NOTE_X = LAYOUT.boxX + LAYOUT.boxW / 2;
@@ -734,8 +738,11 @@
         setupView();
 
         const [lo, hi] = findWindow;
-        const top = yForPitch(hi) - LAYOUT.boxPad;
-        const bottom = yForPitch(lo) + LAYOUT.boxPad;
+        // Lines fall on multiples of 20. The window spans 6 steps, so its top
+        // and bottom notes are always both on lines or both on spaces.
+        const boxPad = yForPitch(hi) % 20 === 0 ? LAYOUT.boxPadLine : LAYOUT.boxPadSpace;
+        const top = yForPitch(hi) - boxPad;
+        const bottom = yForPitch(lo) + boxPad;
         const noteX = NOTE_X;
 
         for (const pitch of windowLedgerPitches(lo, hi)) {
@@ -1013,6 +1020,14 @@
 
       document.querySelectorAll(".answer-button").forEach(button => {
         button.addEventListener("click", () => answer(button.dataset.letter));
+        // Never let a button keep focus: it would look like a hint for the
+        // next question. The A–G keys cover keyboard use.
+        button.tabIndex = -1;
+        button.addEventListener("mousedown", event => event.preventDefault());
+        button.addEventListener("pointerenter", event => {
+          if (event.pointerType === "mouse") button.classList.add("mouse-over");
+        });
+        button.addEventListener("pointerleave", () => button.classList.remove("mouse-over"));
       });
 
       document.addEventListener("keydown", event => {
