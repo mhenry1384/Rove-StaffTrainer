@@ -229,6 +229,9 @@
       height: auto;
       margin: 0 auto;
       overflow: visible;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
 
     .staff-line, .ledger-line {
@@ -263,14 +266,28 @@
     .notehead.correct { fill: var(--green); stroke: var(--green); }
     .notehead.wrong { fill: var(--red); stroke: var(--red); opacity: .8; }
 
+    .find-hits {
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     .find-hit {
       fill: transparent;
       pointer-events: all;
       cursor: pointer;
+    }
+
+    /* Keyboard-only stops: focusable, but the drag area above handles pointers. */
+    .find-key {
+      fill: transparent;
+      pointer-events: none;
       outline: none;
     }
 
-    .find-hit:focus-visible {
+    .find-key:focus-visible {
       stroke: #8da3ff;
       stroke-width: 1.5;
     }
@@ -751,32 +768,90 @@
         const ghost = addNote(lo, "ghost");
         ghost.style.display = "none";
 
-        const hits = svgElement("g");
+        const showGhost = pitch => {
+          if (currentNote === null) return;
+          placeNote(ghost, pitch);
+          ghost.style.display = "";
+        };
+        const hideGhost = () => { ghost.style.display = "none"; };
+
+        // Pointer input: press anywhere in the box, drag up/down to move the
+        // ghost note between lines and spaces, release to answer with it.
+        // Works the same for mouse, pen and touch.
+        const hits = svgElement("g", { class: "find-hits" });
+        hits.append(svgElement("rect", {
+          x: LAYOUT.boxX, y: top, width: LAYOUT.boxW, height: bottom - top, class: "find-hit"
+        }));
+
+        function pitchAt(clientX, clientY) {
+          const point = new DOMPoint(clientX, clientY).matrixTransform(staff.getScreenCTM().inverse());
+          let best = lo;
+          for (let pitch = lo; pitch <= hi; pitch += 1) {
+            if (Math.abs(yForPitch(pitch) - point.y) < Math.abs(yForPitch(best) - point.y)) best = pitch;
+          }
+          return best;
+        }
+
+        let dragPointer = null;
+        let dragPitch = null;
+        hits.addEventListener("pointerdown", event => {
+          if (currentNote === null || dragPointer !== null) return;
+          if (event.pointerType === "mouse" && event.button !== 0) return;
+          event.preventDefault();
+          dragPointer = event.pointerId;
+          try { hits.setPointerCapture(event.pointerId); } catch (error) { /* not supported */ }
+          dragPitch = pitchAt(event.clientX, event.clientY);
+          showGhost(dragPitch);
+        });
+        hits.addEventListener("pointermove", event => {
+          if (dragPointer === null) {
+            // Mouse hover preview.
+            if (event.pointerType === "mouse") showGhost(pitchAt(event.clientX, event.clientY));
+            return;
+          }
+          if (event.pointerId !== dragPointer) return;
+          event.preventDefault();
+          dragPitch = pitchAt(event.clientX, event.clientY);
+          showGhost(dragPitch);
+        });
+        hits.addEventListener("pointerup", event => {
+          if (event.pointerId !== dragPointer) return;
+          const pitch = dragPitch;
+          dragPointer = null;
+          dragPitch = null;
+          if (event.pointerType !== "mouse") hideGhost();
+          answerFind(pitch);
+        });
+        hits.addEventListener("pointercancel", event => {
+          if (event.pointerId !== dragPointer) return;
+          dragPointer = null;
+          dragPitch = null;
+          hideGhost();
+        });
+        hits.addEventListener("pointerleave", () => { if (dragPointer === null) hideGhost(); });
+        // iOS Safari: stop the touch from scrolling the page or starting a text
+        // selection / callout while the note is being dragged.
+        hits.addEventListener("touchstart", event => event.preventDefault(), { passive: false });
+        hits.addEventListener("contextmenu", event => event.preventDefault());
+
+        // Keyboard input: one focusable stop per line/space.
         for (let pitch = hi; pitch >= lo; pitch -= 1) {
           const y = yForPitch(pitch);
-          const hit = svgElement("rect", {
+          const key = svgElement("rect", {
             x: LAYOUT.boxX, y: y - 5, width: LAYOUT.boxW, height: 10,
-            class: "find-hit", tabindex: 0, role: "button",
+            class: "find-key", tabindex: 0, role: "button",
             "aria-label": `Position ${hi - pitch + 1} of 7, counting from the top`
           });
-          const showGhost = () => {
-            if (currentNote === null) return;
-            placeNote(ghost, pitch);
-            ghost.style.display = "";
-          };
-          hit.addEventListener("pointerenter", showGhost);
-          hit.addEventListener("focus", showGhost);
-          hit.addEventListener("click", () => answerFind(pitch));
-          hit.addEventListener("keydown", event => {
+          key.addEventListener("focus", () => showGhost(pitch));
+          key.addEventListener("keydown", event => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               answerFind(pitch);
             }
           });
-          hits.append(hit);
+          hits.append(key);
         }
-        hits.addEventListener("pointerleave", () => { ghost.style.display = "none"; });
-        hits.addEventListener("focusout", () => { ghost.style.display = "none"; });
+        hits.addEventListener("focusout", hideGhost);
         staff.append(hits);
 
         markFind = (pitch, kind) => {
