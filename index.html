@@ -883,7 +883,7 @@
           feedback.textContent = `Correct! That's ${target}.`;
           feedback.className = "feedback correct";
           currentNote = null;
-          window.setTimeout(setNextNote, 750);
+          window.setTimeout(setNextNote, 1125);
         } else {
           markFind(pitch, "wrong");
           recordWrong();
@@ -966,7 +966,7 @@
           feedback.textContent = "Correct! Here comes the next note.";
           feedback.className = "feedback correct";
           currentNote = null;
-          window.setTimeout(setNextNote, 550);
+          window.setTimeout(setNextNote, 825);
         } else {
           recordWrong();
           feedback.textContent = "Not quite. Try another letter.";
