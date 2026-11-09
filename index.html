@@ -357,8 +357,45 @@
       font-size: .78rem;
     }
 
+    .stopwatch {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+      padding: 12px 24px;
+    }
+
+    .stopwatch-time {
+      font-size: 1.25rem;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stopwatch-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .stopwatch-button {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 650;
+    }
+
+    .stopwatch-button:hover { border-color: #9aabf4; background: #f5f7ff; }
+
+    /* Same width for "Start" and "Pause", so Reset doesn't jump. */
+    .stopwatch-toggle { min-width: 84px; }
+
     @media (max-width: 560px) {
       body { padding: 24px 12px 32px; }
+      .stopwatch { padding: 10px 16px; }
       .settings { gap: 14px; padding: 17px 16px; }
       .level-setting { width: 120px; }
       .mode-button { font-size: .78rem; }
@@ -433,6 +470,14 @@
         </div>
         <p id="storage-notice" class="storage-notice" role="status"></p>
         <p id="hint" class="hint">You can also answer with the A–G keys.</p>
+      </div>
+    </section>
+
+    <section class="panel stopwatch" aria-label="Stopwatch">
+      <span id="stopwatch-time" class="stopwatch-time">0:00</span>
+      <div class="stopwatch-buttons">
+        <button id="stopwatch-toggle" class="stopwatch-button stopwatch-toggle" type="button">Start</button>
+        <button id="stopwatch-reset" class="stopwatch-button" type="button">Reset</button>
       </div>
     </section>
   </main>
@@ -1038,8 +1083,84 @@
         if (LETTERS.includes(letter)) answer(letter);
       });
 
+      // ---- Stopwatch --------------------------------------------------------
+      // Elapsed time is added up tick by tick and saved as it goes, so it
+      // survives a refresh, and time while the app is closed doesn't count.
+      const STOPWATCH_KEY = "grand-staff-trainer-stopwatch";
+      const stopwatchTime = document.querySelector("#stopwatch-time");
+      const stopwatchToggle = document.querySelector("#stopwatch-toggle");
+      const stopwatchReset = document.querySelector("#stopwatch-reset");
+      let stopwatchElapsed = 0; // ms
+      let stopwatchRunning = false;
+      let stopwatchLastTick = 0;
+      let stopwatchTimer = null;
+
+      function formatStopwatch(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor(totalSeconds / 60) % 60;
+        const seconds = String(totalSeconds % 60).padStart(2, "0");
+        return hours > 0
+          ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`
+          : `${minutes}:${seconds}`;
+      }
+
+      function updateStopwatch() {
+        stopwatchTime.textContent = formatStopwatch(stopwatchElapsed);
+        stopwatchToggle.textContent = stopwatchRunning ? "Pause" : "Start";
+        try {
+          localStorage.setItem(
+            STOPWATCH_KEY,
+            JSON.stringify({ elapsed: stopwatchElapsed, running: stopwatchRunning })
+          );
+        } catch {
+          // Storage unavailable; the stopwatch just won't persist.
+        }
+      }
+
+      function tickStopwatch() {
+        const now = Date.now();
+        stopwatchElapsed += Math.max(0, now - stopwatchLastTick);
+        stopwatchLastTick = now;
+        updateStopwatch();
+      }
+
+      function setStopwatchRunning(running) {
+        stopwatchRunning = running;
+        window.clearInterval(stopwatchTimer);
+        if (running) {
+          stopwatchLastTick = Date.now();
+          stopwatchTimer = window.setInterval(tickStopwatch, 250);
+        }
+        updateStopwatch();
+      }
+
+      function loadStopwatch() {
+        let saved = {};
+        try {
+          saved = JSON.parse(localStorage.getItem(STOPWATCH_KEY) || "{}") || {};
+        } catch {
+          // Storage unavailable or corrupt; start from zero.
+        }
+        if (Number.isFinite(saved.elapsed) && saved.elapsed > 0) {
+          stopwatchElapsed = saved.elapsed;
+        }
+        setStopwatchRunning(saved.running === true);
+      }
+
+      stopwatchToggle.addEventListener("click", () => {
+        if (stopwatchRunning) tickStopwatch(); // count the time since the last tick
+        setStopwatchRunning(!stopwatchRunning);
+      });
+
+      stopwatchReset.addEventListener("click", () => {
+        stopwatchElapsed = 0;
+        setStopwatchRunning(false);
+      });
+
       readSettings();
       setNextNote();
+      loadStopwatch();
     })();
   </script>
 </body>
