@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#f6f4ee">
   <title>Grand Staff Trainer</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <style>
     :root {
       color-scheme: light;
@@ -1162,6 +1164,11 @@
       setNextNote();
       loadStopwatch();
     })();
+
+    // Register the service worker so the app can be installed and used offline.
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      navigator.serviceWorker.register("sw.js");
+    }
   </script>
 </body>
 </html>
