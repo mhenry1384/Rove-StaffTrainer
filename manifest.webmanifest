@@ -1,7 +1,7 @@
 {
-  "name": "Grand Staff Trainer",
+  "name": "Staff Trainer",
   "short_name": "Staff Trainer",
-  "description": "Practice reading notes on the grand staff.",
+  "description": "Practice reading notes on the grand staff and the guitar treble staff.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
